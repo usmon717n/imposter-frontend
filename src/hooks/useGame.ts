@@ -101,7 +101,8 @@ export function useGameSocket(roomId: string | undefined) {
             useGameStore.setState({ isSpectator: true })
           }
         }
-        if (!data.gameEnded && game.phase !== 'result') {
+        if (!data.gameEnded) {
+          // Reset votes and continue playing
           game.setPhase('playing')
         }
       }),
