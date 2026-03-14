@@ -1,5 +1,5 @@
 // src/pages/Room.tsx
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { roomsApi, Room as RoomType } from '../services/api'
 import { socket } from '../services/socket'
@@ -17,12 +17,19 @@ function Lobby({ room, onStart, onLeave }: { room: RoomType; onStart: () => void
   const [inviteNick, setInviteNick] = useState('')
   const [inviting, setInviting] = useState(false)
   const [copied, setCopied] = useState(false)
+
   const isHost = room.hostId === user?.id
-  const players = game.players.length > 0 ? game.players : room.players.map(p => ({ userId: p.userId, nickname: p.nickname, avatarUrl: p.avatarUrl, turnOrder: p.turnOrder }))
+  // Merge socket players with HTTP players
+  const players = game.players.length > 0
+    ? game.players
+    : room.players.map(p => ({
+        userId: p.userId, nickname: p.nickname,
+        avatarUrl: p.avatarUrl, turnOrder: p.turnOrder,
+      }))
   const canStart = players.length >= 3
 
   const copyLink = () => {
-    navigator.clipboard.writeText(window.location.href)
+    navigator.clipboard.writeText(`${window.location.origin}/room/${room.roomCode}`)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -31,19 +38,18 @@ function Lobby({ room, onStart, onLeave }: { room: RoomType; onStart: () => void
     if (!inviteNick.trim()) return
     setInviting(true)
     try {
-      await roomsApi.invite(room.id, inviteNick)
+      await roomsApi.invite(room.id, inviteNick.trim())
       toast(`${inviteNick} ga taklif yuborildi`, 'success')
       setInviteNick('')
-    } catch (e: any) {
-      toast(e.message, 'error')
-    } finally { setInviting(false) }
+    } catch (e: any) { toast(e.message, 'error') }
+    finally { setInviting(false) }
   }
 
   return (
-    <div style={{ minHeight: '100vh', paddingTop: 80, maxWidth: 680, margin: '0 auto', padding: '80px 20px 40px', position: 'relative', zIndex: 1 }}>
+    <div style={{ minHeight: '100vh', maxWidth: 680, margin: '0 auto', padding: '80px 20px 40px', position: 'relative', zIndex: 1 }}>
       <BgOrbs />
-
       <div className="card animate-fade-up" style={{ position: 'relative', zIndex: 1 }}>
+
         {/* Room code */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', letterSpacing: 2, marginBottom: 10 }}>XONA KODI</div>
@@ -59,38 +65,40 @@ function Lobby({ room, onStart, onLeave }: { room: RoomType; onStart: () => void
           </div>
         </div>
 
-        {/* Invite row */}
+        {/* Invite */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
           <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 14 }}>
-            <div style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 8, letterSpacing: .4, fontWeight: 700 }}>🔗 HAVOLA</div>
+            <div style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 8, fontWeight: 700 }}>🔗 HAVOLA</div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', marginBottom: 10, wordBreak: 'break-all', lineHeight: 1.5 }}>
               {window.location.origin}/room/{room.roomCode}
             </div>
             <button className="btn btn-outline" style={{ width: '100%', fontSize: 11 }} onClick={copyLink}>
-              {copied ? '✓ NUSXA OLINDI' : 'NUSXA OLISH'}
+              {copied ? '✓ NUSXALANDI' : 'NUSXA OLISH'}
             </button>
           </div>
           <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 14 }}>
-            <div style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 8, letterSpacing: .4, fontWeight: 700 }}>👤 NICKNAME ORQALI</div>
-            <input className="input" placeholder="Nickname..." value={inviteNick} onChange={e => setInviteNick(e.target.value)} style={{ marginBottom: 8, padding: '7px 10px', fontSize: 12 }} />
+            <div style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 8, fontWeight: 700 }}>👤 NICKNAME ORQALI</div>
+            <input className="input" placeholder="Nickname..." value={inviteNick}
+              onChange={e => setInviteNick(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleInvite()}
+              style={{ marginBottom: 8, padding: '7px 10px', fontSize: 12 }} />
             <button className="btn btn-outline" style={{ width: '100%', fontSize: 11 }} onClick={handleInvite} disabled={inviting}>
               {inviting ? <Spinner size={12} /> : 'TAKLIF YUBORISH'}
             </button>
           </div>
         </div>
 
-        {/* Players */}
+        {/* Players list */}
         <div style={{ marginBottom: 22 }}>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', letterSpacing: 2, marginBottom: 12 }}>
-            O'YINCHILAR ({players.length}/{room.maxPlayers}) {!canStart && `— kamida 3 kerak`}
+            O'YINCHILAR ({players.length}/{room.maxPlayers}){!canStart && ' — kamida 3 kerak'}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {players.map((p, i) => (
               <div key={p.userId} className="animate-slide-l" style={{
                 display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
-                background: 'var(--surface2)', borderRadius: 6,
+                background: 'var(--surface2)', borderRadius: 6, animationDelay: `${i * .07}s`,
                 border: `1px solid ${p.userId === room.hostId ? 'rgba(139,0,0,.3)' : 'var(--border)'}`,
-                animationDelay: `${i * .07}s`,
               }}>
                 <Avatar user={p} size={34} />
                 <span style={{ flex: 1, fontWeight: 700, fontSize: 13 }}>{p.nickname}</span>
@@ -98,7 +106,6 @@ function Lobby({ room, onStart, onLeave }: { room: RoomType; onStart: () => void
                 {p.userId === user?.id && <span className="badge badge-gray">SIZ</span>}
               </div>
             ))}
-            {/* Empty slots */}
             {Array.from({ length: Math.max(0, 3 - players.length) }).map((_, i) => (
               <div key={`e${i}`} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--surface2)', borderRadius: 6, border: '1px dashed var(--border)', opacity: .4 }}>
                 <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--border)' }} />
@@ -110,12 +117,15 @@ function Lobby({ room, onStart, onLeave }: { room: RoomType; onStart: () => void
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn btn-outline" style={{ flex: 1 }} onClick={onLeave}>CHIQISH</button>
-          {isHost && (
+          {isHost ? (
             <button className="btn btn-primary" style={{ flex: 2, padding: '12px 0' }} onClick={onStart} disabled={!canStart}>
               {!canStart ? `KAM O'YINCHI (${players.length}/3)` : "O'YINNI BOSHLASH →"}
             </button>
+          ) : (
+            <div style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted2)', fontSize: 13 }}>
+              ⏳ Host o'yinni boshlashini kuting...
+            </div>
           )}
-          {!isHost && <div style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted2)', fontSize: 13 }}>⏳ Host o'yinni boshlashini kuting...</div>}
         </div>
       </div>
     </div>
@@ -135,7 +145,7 @@ function WordReveal({ onReady }: { onReady: () => void }) {
           {isImposter ? '😈' : '🔵'}
         </div>
         <h2 style={{ fontFamily: 'var(--font-d)', fontSize: 24, letterSpacing: 5, marginBottom: 8, color: 'var(--muted2)' }}>
-          {isImposter ? 'SEN IMPOSTERSAN!' : 'SIZNING SO\'ZINGIZ:'}
+          {isImposter ? 'SEN IMPOSTERSAN!' : "SIZNING SO'ZINGIZ:"}
         </h2>
         {!shown ? (
           <button className="btn btn-outline" style={{ marginTop: 20, padding: '14px 36px', fontSize: 13 }} onClick={() => setShown(true)}>
@@ -147,12 +157,15 @@ function WordReveal({ onReady }: { onReady: () => void }) {
               fontFamily: 'var(--font-d)', fontSize: 52, letterSpacing: 7,
               color: isImposter ? 'var(--accent)' : 'var(--green)',
               textShadow: `0 0 36px ${isImposter ? 'var(--glow)' : 'rgba(34,197,94,.4)'}`,
-              background: 'var(--surface)', padding: '18px 36px',
-              borderRadius: 'var(--radius-lg)',
+              background: 'var(--surface)', padding: '18px 36px', borderRadius: 'var(--radius-lg)',
               border: `1px solid ${isImposter ? 'rgba(139,0,0,.4)' : 'rgba(34,197,94,.25)'}`,
               margin: '18px 0',
             }}>{myWord}</div>
-            {isImposter && <p style={{ color: 'var(--muted2)', fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>Siz Impostersan. Boshqalar har xil so'z oldi.<br />Chalg'itishga harakat qil!</p>}
+            {isImposter && (
+              <p style={{ color: 'var(--muted2)', fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>
+                Siz Impostersan. Boshqalar boshqa so'z oldi.<br />Chalg'itishga harakat qil!
+              </p>
+            )}
             <button className="btn btn-primary" style={{ padding: '13px 36px', fontSize: 13 }} onClick={onReady}>
               O'YINGA KIRISH →
             </button>
@@ -171,7 +184,9 @@ function Result({ onPlayAgain, onLeave }: { onPlayAgain: () => void; onLeave: ()
       <BgOrbs />
       <div className="animate-fade-up" style={{ textAlign: 'center', maxWidth: 500, position: 'relative', zIndex: 1 }}>
         <div style={{ fontSize: 68, marginBottom: 16, animation: 'float 2s ease-in-out infinite' }}>🎭</div>
-        <h2 style={{ fontFamily: 'var(--font-d)', fontSize: 44, letterSpacing: 5, color: 'var(--accent)', textShadow: '0 0 36px var(--glow)', marginBottom: 8 }}>O'YIN TUGADI</h2>
+        <h2 style={{ fontFamily: 'var(--font-d)', fontSize: 44, letterSpacing: 5, color: 'var(--accent)', textShadow: '0 0 36px var(--glow)', marginBottom: 8 }}>
+          O'YIN TUGADI
+        </h2>
         <p style={{ fontFamily: 'var(--font-d)', fontSize: 22, letterSpacing: 4, color: winner === 'players' ? 'var(--green)' : 'var(--accent)', marginBottom: 28 }}>
           {winner === 'players' ? "O'YINCHILAR YUTDI! 🏆" : 'IMPOSTER YUTDI! 😈'}
         </p>
@@ -212,13 +227,19 @@ export default function RoomPage() {
   const toast = useToast()
   const { user } = useAuthStore()
   const game = useGameStore()
-  const { startGame, leaveRoom } = useGameSocket(game.room?.id)
   const [room, setRoom] = useState<RoomType | null>(null)
+  const [roomId, setRoomId] = useState<string | undefined>()
   const [loading, setLoading] = useState(true)
+
+  // FIX: pass roomId state, not game.room?.id
+  const { startGame, leaveRoom } = useGameSocket(roomId)
 
   useEffect(() => {
     if (!user) { navigate('/login'); return }
     loadRoom()
+    return () => {
+      // cleanup: don't reset game state on unmount to preserve phase
+    }
   }, [code])
 
   const loadRoom = async () => {
@@ -226,24 +247,34 @@ export default function RoomPage() {
       const r = code ? await roomsApi.getByCode(code) : null
       if (!r) { navigate('/room'); return }
       setRoom(r)
+      setRoomId(r.id) // FIX: set roomId for useGameSocket
       game.setRoom(r)
-      // Only set lobby phase if not already in a game phase
+      // Only reset to lobby if not in active game
       if (game.phase === 'idle' || game.phase === 'result') {
         game.setPhase('lobby')
+        // Sync players from HTTP response
+        if (r.players?.length > 0) {
+          r.players.forEach(p => game.addPlayer({
+            userId: p.userId,
+            nickname: p.nickname,
+            avatarUrl: p.avatarUrl,
+            turnOrder: p.turnOrder,
+          }))
+        }
       }
-      // Connect socket and join room
       socket.connect()
       await socket.joinRoom(r.roomCode)
     } catch (e: any) {
       toast(e.message, 'error')
       navigate('/room')
-    } finally { setLoading(false) }
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleStart = async () => {
-    try {
-      await startGame()
-    } catch (e: any) { toast(e.message, 'error') }
+    try { await startGame() }
+    catch (e: any) { toast(e.message, 'error') }
   }
 
   const handleLeave = async () => {
