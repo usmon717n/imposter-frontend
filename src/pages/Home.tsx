@@ -6,16 +6,16 @@ import { Page } from '../components/ui'
 
 const GAMES = [
   { id: 'imposter', name: 'IMPOSTER', desc: 'So\'z orqali Imposterni top', players: 847, live: true, emoji: '🔴' },
-  { id: 'ox',       name: 'OX',       desc: 'Tez fikrli reaktsiya o\'yini', players: 0, live: false, emoji: '⭕' },
-  { id: 'alias',    name: 'ALIAS',    desc: 'So\'z izohlash o\'yini', players: 0, live: false, emoji: '💬' },
+  { id: 'ox',       name: 'OX',       desc: 'Tez fikrli reaktsiya o\'yini', players: 0, live: true, emoji: '⭕' },
+  { id: 'alias',    name: 'ALIAS',    desc: 'So\'z izohlash o\'yini', players: 0, live: true, emoji: '💬' },
   { id: 'taboo',    name: 'TABOO',    desc: 'Taqiqlangan so\'zlar', players: 0, live: false, emoji: '🚫' },
 ]
 
 const STATS = [
-  { label: "JAMI O'YINLAR", value: '48,291' },
-  { label: "BUGUN O'YINDI", value: '3,847' },
-  { label: "O'YINCHILAR", value: '12,500+' },
-  { label: 'REKORD', value: '2,341 online' },
+  { label: "JAMI O'YINLAR", value: '25' },
+  { label: "BUGUN O'YINDI", value: '3' },
+  { label: "O'YINCHILAR", value: '5' },
+  { label: 'REKORD', value: '5' },
 ]
 
 export default function Home() {
@@ -57,7 +57,7 @@ export default function Home() {
           <span style={{ color: 'var(--accent)', textShadow: '0 0 40px var(--glow)' }}>PLATFORMASI</span>
         </h1>
         <p className="animate-fade-up" style={{ color: 'var(--muted2)', fontSize: 15, marginTop: 20, letterSpacing: 1, animationDelay: '.25s' }}>
-          Do'stlaringiz bilan onlayn o'ynang · Imposter kim ekanini toping
+          Do'stlaringiz bilan onlayn o'ynang · Har lahzadan rohatlaning · Developer:Usmon Umaraliyev
         </p>
       </div>
 
