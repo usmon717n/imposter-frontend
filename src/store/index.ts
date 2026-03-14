@@ -84,7 +84,8 @@ interface GameState {
 
   setRoom: (r: Room | null) => void
   setPhase: (p: GameState['phase']) => void
-  setGameStarted: (data: { word: string; isImposter: boolean; players: GamePlayer[]; durationSeconds: number }) => void
+  setGameStarted: (data: { word: string; isImposter: boolean; players: GamePlayer[]; durationSeconds: number; gameEndsAt?: string }) => void
+  setGameEndsAt: (endsAt: string) => void
   addMessage: (m: ChatMessage) => void
   addSystemMessage: (text: string) => void
   updateReaction: (messageId: string, reactions: Record<string, string[]>) => void
@@ -112,10 +113,11 @@ const initialGameState = {
 export const useGameStore = create<GameState>((set) => ({
   ...initialGameState,
   setRoom: (room) => set({ room }),
+  setGameEndsAt: (gameEndsAt) => set({ gameEndsAt }),
   setPhase: (phase) => set({ phase }),
-  setGameStarted: ({ word, isImposter, players, durationSeconds }) => set({
+  setGameStarted: ({ word, isImposter, players, durationSeconds, gameEndsAt }) => set({
     myWord: word, isImposter, players, phase: 'word_reveal',
-    gameEndsAt: new Date(Date.now() + durationSeconds * 1000).toISOString(),
+    gameEndsAt: gameEndsAt || new Date(Date.now() + durationSeconds * 1000).toISOString(),
     messages: [], voteCounts: {}, myVote: null, winner: null, isSpectator: false,
   }),
   addMessage: (m) => set(s => ({ messages: [...s.messages, m] })),
