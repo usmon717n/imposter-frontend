@@ -14,10 +14,11 @@ export function useGameSocket(roomId: string | undefined) {
 
   useEffect(() => {
     if (!roomId) return
-    socket.connect()
 
     const unsubs = [
-      socket.on('room_state', (data: any) => game.setRoom(data)),
+      socket.on('room_state', (data: any) => {
+        game.setRoom(data)
+      }),
 
       socket.on('player_joined', ({ player }: any) => {
         game.addPlayer(player)
@@ -39,14 +40,19 @@ export function useGameSocket(roomId: string | undefined) {
       socket.on('game_started', (data: any) => {
         playSound('game_start')
         game.setGameStarted({
-          word: data.word, isImposter: data.isImposter,
-          players: data.players, durationSeconds: data.durationSeconds,
+          word: data.word,
+          isImposter: data.isImposter,
+          players: data.players,
+          durationSeconds: data.durationSeconds,
+          gameEndsAt: data.gameEndsAt, // FIX: use server-provided gameEndsAt
         })
       }),
 
       socket.on('game_phase_changed', (data: any) => {
         game.setTurn(data.currentTurnUserId, data.turnEndsAt)
         if (data.phase === 'playing') game.setPhase('playing')
+        // FIX: update gameEndsAt from server
+        if (data.gameEndsAt) game.setGameEndsAt(data.gameEndsAt)
       }),
 
       socket.on('new_message', (data: any) => {
@@ -69,11 +75,10 @@ export function useGameSocket(roomId: string | undefined) {
         game.setTurn(data.nextTurnUserId, data.turnEndsAt)
         if (data.autoSkipped) {
           const p = game.players.find(x => x.userId === data.skippedUserId)
-          if (p) game.addSystemMessage(`${p.nickname} navbatini o'tkazib yubordi`)
+          if (p) game.addSystemMessage(`${p.nickname} navbatini o'tkazdi`)
         }
       }),
 
-      // My turn notification
       socket.on('your_turn', () => {
         playSound('your_turn')
       }),
@@ -93,16 +98,14 @@ export function useGameSocket(roomId: string | undefined) {
           game.addSystemMessage(
             data.wasImposter
               ? `✅ ${data.eliminatedNickname} IMPOSTER edi! O'yinchilar yutdi!`
-              : `❌ ${data.eliminatedNickname} oddiy o'yinchi edi.`
+              : `❌ ${data.eliminatedNickname} oddiy o'yinchi edi. O'yin davom etadi.`
           )
-          // Check if I was eliminated → spectator mode
+          // Spectator mode if I was eliminated
           if (data.eliminatedUserId === user?.id) {
-            game.setPhase('playing') // stay in game as spectator
             useGameStore.setState({ isSpectator: true })
           }
         }
         if (!data.gameEnded) {
-          // Reset votes and continue playing
           game.setPhase('playing')
         }
       }),
@@ -110,20 +113,19 @@ export function useGameSocket(roomId: string | undefined) {
       socket.on('xp_update', (data: any) => {
         if (data.userId === user?.id) {
           game.setXpResult(data)
-          // Update user XP in store
-          if (user) {
-            setUser({ ...user, xp: data.newXp, level: data.newLevel })
-          }
-          if (data.newXp > 0) playSound('xp_gain')
+          if (user) setUser({ ...user, xp: data.newXp, level: data.newLevel })
+          if (data.xpGained !== 0) playSound('xp_gain')
         }
       }),
 
       socket.on('game_ended', (data: any) => {
         playSound('game_end')
         game.setGameEnded({
-          winner: data.winner, imposterUserId: data.imposterUserId,
+          winner: data.winner,
+          imposterUserId: data.imposterUserId,
           imposterNickname: data.imposterNickname,
-          commonWord: data.commonWord, imposterWord: data.imposterWord,
+          commonWord: data.commonWord,
+          imposterWord: data.imposterWord,
         })
       }),
     ]
@@ -148,10 +150,10 @@ export function useGameSocket(roomId: string | undefined) {
     socket.skipTurn(roomId)
   }, [roomId])
 
-  const castVote = useCallback(async (targetPlayerId: string) => {
+  const castVote = useCallback(async (targetUserId: string) => {
     if (!roomId) return
-    game.setMyVote(targetPlayerId)
-    const res = await socket.castVote(roomId, targetPlayerId)
+    game.setMyVote(targetUserId)
+    const res = await socket.castVote(roomId, targetUserId)
     if (!res.success) throw new Error(res.error)
   }, [roomId])
 
@@ -190,13 +192,4 @@ export function useCountdown(endsAt: string | null) {
     return () => clearInterval(t)
   }, [endsAt])
   return secs
-}
-
-export function useLang() {
-  const [, forceUpdate] = useState(0)
-  useEffect(() => {
-    import('../i18n').then(({ onLangChange }) => {
-      return onLangChange(() => forceUpdate(n => n + 1))
-    })
-  }, [])
 }

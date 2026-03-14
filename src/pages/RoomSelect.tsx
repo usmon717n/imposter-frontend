@@ -1,6 +1,6 @@
 // src/pages/RoomSelect.tsx
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { roomsApi } from '../services/api'
 import { useAuthStore } from '../store'
 import { Page, BgOrbs } from '../components/ui'
@@ -9,6 +9,8 @@ import { useToast } from '../components/ui'
 export default function RoomSelect() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const gameType = searchParams.get('game') || 'imposter'
   const toast = useToast()
   const [view, setView] = useState<'menu' | 'create' | 'join'>('menu')
   const [duration, setDuration] = useState<5 | 10 | 15>(10)
@@ -19,8 +21,10 @@ export default function RoomSelect() {
   const handleCreate = async () => {
     setLoading(true)
     try {
-      const room = await roomsApi.create({ durationMinutes: duration, maxPlayers })
-      navigate(`/room/${room.roomCode}`)
+      const mp = gameType === 'ox' ? 2 : maxPlayers
+      const room = await roomsApi.create({ durationMinutes: duration, maxPlayers: mp })
+      const path = gameType === 'ox' ? `/ox/${room.roomCode}` : `/room/${room.roomCode}`
+      navigate(path)
     } catch (e: any) {
       toast(e.message, 'error')
     } finally { setLoading(false) }
@@ -31,7 +35,8 @@ export default function RoomSelect() {
     setLoading(true)
     try {
       const room = await roomsApi.join(joinCode.toUpperCase())
-      navigate(`/room/${room.roomCode}`)
+      const path = gameType === 'ox' ? `/ox/${room.roomCode}` : `/room/${room.roomCode}`
+      navigate(path)
     } catch (e: any) {
       toast(e.message, 'error')
     } finally { setLoading(false) }

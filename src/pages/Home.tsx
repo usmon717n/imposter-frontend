@@ -32,7 +32,8 @@ export default function Home() {
   const handlePlay = (game: typeof GAMES[0]) => {
     if (!game.live) return
     if (!user) { navigate('/login'); return }
-    navigate('/room')
+    if (game.id === 'ox') navigate('/room?game=ox')
+    else navigate('/room')
   }
 
   return (

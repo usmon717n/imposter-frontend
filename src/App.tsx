@@ -12,6 +12,7 @@ import Profile from './pages/Profile'
 import RoomSelect from './pages/RoomSelect'
 import RoomPage from './pages/Room'
 import AuthCallback from './pages/AuthCallback'
+import OXGame from './pages/OXGame'
 import './styles/global.css'
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -61,6 +62,7 @@ export default function App() {
               <Route path="/profile" element={<Protected><Profile /></Protected>} />
               <Route path="/room" element={<Protected><RoomSelect /></Protected>} />
               <Route path="/room/:code" element={<Protected><RoomPage /></Protected>} />
+              <Route path="/ox/:code" element={<Protected><OXGame /></Protected>} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>
